@@ -3,6 +3,7 @@ const { auth } = require('../middlewares/authentication.middleware')
 const userManager = require('../dao/mongo/user.mongo');
 const { createHash, isValidPassword } = require('../utils/bcryptHash');
 const passport = require('passport');
+const { notLoged }= require('../middlewares/notLoged.middleware')
 const router = Router()
 
 router.get('/counter', (req, res) => {
@@ -16,7 +17,7 @@ router.get('/counter', (req, res) => {
 })
 
 router.get('/privada', auth, (req, res) => {
-    res.send('Todo lo que esta aca solo lo ve admin logeado')
+    res.send('Solo lo ve admin logeado')
 })
 
 // router.post('/login', async (req, res) => {
@@ -83,25 +84,35 @@ router.post('/restaurarPass', async (req, res) => {
 //     }
 // })
 
-router.post('/login', passport.authenticate('login', {failureRedirect: '/api/session//failLogin'}), async (req, res) => {
-    if (!req.user) return res.status(401).send({ status: 'error', message: 'invalid credencial' })
-    req.session.user = {
-        first_ame: req.user.first_name,
-        last_name: req.user.last_name,
-        email: req.user.email
+router.post(
+    "/login",
+    passport.authenticate("login", {
+        failureRedirect: "/api/session/failLogin",
+    }),
+    async (req, res) => {
+        if (!req.user) return res.status(401).send({ status: "error", message: "credenciales invalidas" });
+        req.session.user = {
+            first_name: req.user.first_name,
+            last_name: req.user.last_name,
+            email: req.user.email,
+            date_of_birth: req.user.date_of_birth.toLocaleDateString("es-AR", { timeZone: "UTC" }),
+            role: req.user.role,
+            cartId: req.user.cartId
+        };
+        // if (req.session.user.email === "adminCoder@coder.com") {
+        //     req.session.user.role = "admin";
+        // } else {
+        //     req.session.user.role = "user";
+        // }
+        //res.send({ status: "succes", message: "User registed" });
+        res.redirect("/products");
     }
-    if (req.session.user.email === 'adminCoder@coder.com') {
-        req.session.user.role = 'admin'
-    } else {
-        req.session.user.role = 'user'
-    }
-    res.redirect('/products')
-})
+)
 
-router.get('/failLogin', async (req, res) => {
-    console.log('Fallo la estrategia de Login.')
-    res.send({ status: 'error', message: 'Fallo la autenticacion' })
-})
+router.get("/failLogin", async (req, res) => {
+    console.log("fallo la estrategia de login.");
+    res.send({ status: "error", message: "Fallo la autenticacion" });
+});
 
 router.post('/register', passport.authenticate('register', {failureRedirect: '/api/session/failRegister'}), async (req, res) => {
     res.redirect('/login')
@@ -112,6 +123,19 @@ router.get('/failRegister', async (req, res) => {
     res.send({ status: 'error', message: 'Fallo la autenticacion' })
 })
 
+router.get("/github", passport.authenticate("github", { scope: ["user:email"] }));
+
+router.get("/githubcallback", passport.authenticate("github", { failureRedirect: "/login" }), async (req, res) => {
+    req.session.user = req.user;
+    // if (req.session.user.email === "adminCoder@coder.com") {
+    //     req.session.user.role = "admin";
+    // } else {
+    //     req.session.user.role = "user";
+    // }
+    //console.log("reqUser", req.user);
+    res.redirect("/products");
+});
+
 router.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -120,6 +144,10 @@ router.get('/logout', (req, res) => {
             res.redirect('/login')
         }
     })
+})
+
+router.get("/current", notLoged, (req, res) => {
+    res.send(req.session.user);
 })
 
 module.exports = router

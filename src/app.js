@@ -11,7 +11,7 @@ const messageManager = require('./dao/mongo/messsage.mongo')
 const FileStore = require('session-file-store')
 const { create } = require('connect-mongo')
 
-const { initPassport } = require('./config/passport.config.js')
+const { initPassport, initPassportGithub } = require('./config/passport.config.js')
 const passport = require('passport')
 
 //const { ProductManager } = require('./dao/fileSystem/productManager')
@@ -40,7 +40,7 @@ app.use(
                 useNewUrlParser: true,
                 useUnifiedTopology: true,
             },
-            ttl: 100000 * 60,
+            ttl: 86400,
         }),
         secret: 'S3CR3T0',
         resave: false,
@@ -48,11 +48,12 @@ app.use(
     })
 )
 
-app.use(routerApp)
-
 initPassport()
+initPassportGithub()
 passport.use(passport.initialize())
 passport.use(passport.session())
+
+app.use(routerApp)
 
 app.use((err, req, res, next) => {
     console.log(err)
